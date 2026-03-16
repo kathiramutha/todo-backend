@@ -1,63 +1,61 @@
 from flask import Flask, request, jsonify
 import pymysql
 import os
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
-db_host = os.environ.get("DB_HOST")
-db_user = os.environ.get("DB_USER")
-db_password = os.environ.get("DB_PASSWORD")
-db_name = os.environ.get("DB_NAME")
+DB_HOST = os.environ.get("DB_HOST")
+DB_USER = os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_NAME = os.environ.get("DB_NAME")
 
 def get_connection():
     return pymysql.connect(
-        host=db_host,
-        user=db_user,
-        password=db_password,
-        database=db_name
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+        cursorclass=pymysql.cursors.DictCursor
     )
 
-@app.route('/tasks', methods=['GET'])
+@app.route("/")
+def home():
+    return "Backend running"
+
+@app.route("/tasks", methods=["GET"])
 def get_tasks():
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    connection=get_connection()
 
-    cursor.execute("SELECT id, task FROM todos")
+    with connection.cursor() as cursor:
 
-    rows = cursor.fetchall()
+        cursor.execute("SELECT * FROM todos")
+        tasks=cursor.fetchall()
 
-    tasks = []
-
-    for row in rows:
-        tasks.append({
-            "id": row[0],
-            "task": row[1]
-        })
-
-    conn.close()
+    connection.close()
 
     return jsonify(tasks)
 
+@app.route("/tasks", methods=["POST"])
 
-@app.route('/tasks', methods=['POST'])
 def add_task():
 
-    data = request.get_json()
+    data=request.get_json()
 
-    task = data["task"]
+    task=data.get("task")
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    connection=get_connection()
 
-    cursor.execute("INSERT INTO todos(task) VALUES(%s)", (task,))
+    with connection.cursor() as cursor:
 
-    conn.commit()
+        cursor.execute("INSERT INTO todos (task) VALUES (%s)",(task))
 
-    conn.close()
+    connection.commit()
+    connection.close()
 
-    return jsonify({"message":"Task added"})
+    return jsonify({"message":"task added"})
 
-
-if __name__ == '__main__':
+if __name__=="__main__":
     app.run()
